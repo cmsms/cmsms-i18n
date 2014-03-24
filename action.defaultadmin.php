@@ -30,7 +30,7 @@
 
 
     $form = new CMSForm($this->GetName(), $id, 'defaultadmin', $returnid);
-    $form->setWidget('default_culture', 'select', array('values' => Translator::getAvailableCultures(), 'preference' => 'default_culture'));
+    $form->setWidget('default_culture', 'select', array('values' => I18nCulture::getAvailableCultures(), 'preference' => 'default_culture'));
     $form->setWidget('harvest', 'checkbox', array('text' => $this->Lang('harvest_tips'), 'preference' => 'harvest'));
 
     if($form->isSent())
@@ -39,8 +39,6 @@
     }
 
     $smarty->assign('form', $form);
-
-
 
 
 //    if (isset($params['default_culture'])) {

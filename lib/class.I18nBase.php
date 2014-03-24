@@ -8,6 +8,10 @@
     copyrights: Jean-Christophe Cuvelier - Morris & Chapman 2010
 */
 
+/**
+ * Class I18nBase
+ * 
+ */
 class I18nBase
 {
     var $culture;
@@ -23,19 +27,10 @@ class I18nBase
 
     /*
 
-        This object is loaded at the begining. It should be aware of the current page language and culture.
+        This object is loaded at the beginning. It should be aware of the current page language and culture.
 
     */
 
-    private static $languages_iso = array(
-        'en' => 'en_GB'
-    , 'fr' => 'fr_FR'
-    , 'de' => 'de_DE'
-    , 'es' => 'es_ES'
-    , 'ro' => 'ro_RO'
-    , 'it' => 'it_IT'
-    , 'nl' => 'nl_NL'
-    ); // FIXME: Should be handled differently ! DEPRECATED
 
     public function __construct($content_id = '', $culture = null)
     {
@@ -45,104 +40,40 @@ class I18nBase
 
             if (CultureInfo::validCulture($culture) !== false) {
                 $this->setCulture($culture);
-                $this->language = substr($culture, 0, 2);
+                $this->language = $this->getLanguage();
             }
         } else {
             $this->content_id = cms_utils::get_current_pageid();
         }
     }
 
-
     public function getLanguage()
     {
-        if (!empty($this->language)) {
-            return $this->language;
-        } else {
-            $this->language = self::getLanguageForPage($this->content_id);
-            return $this->language;
+        if (empty($this->language)) {
+            $this->language = I18nPage::getLanguage($this->content_id);
         }
+
+        return $this->language;
     }
-
-    public static function getLanguageForPage($content_id)
-    {
-        // var_dump( $content_id);
-        return substr(self::getCultureFromPage($content_id), 0, 2);
-    }
-
-    public static function getCultureFromPage($content_id)
-    {
-        global $gCms;
-        $manager =& $gCms->GetHierarchyManager();
-        $node =& $manager->getNodeById($content_id);
-        if (!isset($node) || $node === FALSE) return false;
-        $content =& $node->GetContent();
-        $root = self::getRootPage($content);
-
-        if (false !== $root) {
-            $culture = $root->Alias();
-        } elseif (!empty($this->default_language)) {
-            $culture = $this->default_language;
-        } else {
-            $culture = 'en'; // FIXME: Should be taken from an option
-        }
-
-        // Dirty fix for old websites
-        if (strlen($culture) == 2) {
-            if (array_key_exists($culture, self::$languages_iso)) {
-                $culture = self::$languages_iso[$culture];
-            }
-        }
-
-        if (CultureInfo::validCulture($culture) !== false) {
-            return $culture;
-        } else {
-            return null;
-        }
-    }
-
-    public static function getRootPage($content)
-    {
-        if ($content->ParentId() != '-1') {
-            $path = explode('.', $content->IdHierarchy());
-            if (isset($path[0])) {
-                global $gCms;
-                $manager =& $gCms->GetHierarchyManager();
-                $node =& $manager->getNodeById($path[0]);
-                if (!isset($node) || $node === FALSE) return false;
-                $content =& $node->GetContent();
-                return $content;
-            } else {
-                return false;
-            }
-        } else {
-            return $content;
-        }
-    }
-
 
     public function getCulture()
     {
         if (empty($this->culture)) {
-            $this->culture = self::getCultureFromPage($this->content_id);
+            $this->culture = I18nPage::getCulture($this->content_id);
         }
+
         return $this->culture;
     }
 
     public function getMainCulture()
     {
-        if(!isset($this->main_culture))
-        {
-            $i18n_module = cms_utils::get_module('I18n');
-            $this->main_culture = $i18n_module->getPreference('default_culture', 'en_GB');
+        if (empty($this->main_culture)) {
+            $this->main_culture = I18nCulture::getDefault('en_GB');
         }
 
         return $this->main_culture;
     }
 
-    public function setCulture($culture)
-    {
-        $this->culture = $culture;
-    }
 
     public function cultureFromLanguage()
     {
@@ -171,15 +102,19 @@ class I18nBase
                 $this->translations[$translation->getSource()] = $translation;
             }
         }
+
         return $this->translations;
     }
 
     public function getTranslation($key)
     {
-        if (empty($this->translations))
+        if (empty($this->translations)) {
             $this->getTranslations();
-        if (isset($this->translations[html_entity_decode($key)]))
+        }
+        if (isset($this->translations[html_entity_decode($key)])) {
             return $this->translations[html_entity_decode($key)]->getTarget();
+        }
+
         return null;
     }
 
@@ -191,19 +126,62 @@ class I18nBase
                 $this->links[$link->getSourceAlias()] = $link;
             }
         }
-        return $this->translations;
+
+        return $this->links;
     }
 
     public function getLink($key)
     {
-        if (empty($this->links))
+        if (empty($this->links)) {
             $this->getLinks();
-        if (isset($this->links[html_entity_decode($key)]))
+        }
+        if (isset($this->links[html_entity_decode($key)])) {
             return $this->links[html_entity_decode($key)]->getTargetAlias();
+        }
+
         return null;
     }
 
     // REFACTORING ALL ABOVE !!!
+
+
+    public function setCulture($culture)
+    {
+        $this->culture = $culture;
+    }
+
+    // DEPRECATED
+
+    /**
+     * @param $content_id
+     * @return string
+     * @deprecated
+     */
+    public static function getLanguageForPage($content_id)
+    {
+        return I18nPage::getLanguage($content_id);
+    }
+
+    /**
+     * @param $content_id
+     * @return null
+     * @deprecated
+     */
+    public static function getCultureFromPage($content_id)
+    {
+        return I18nPage::getCulture($content_id);
+    }
+
+    /**
+     * @param ContentBase $content
+     * @deprecated since 0.9.9 Use I18nPage class
+     * @return bool|ContentBase
+     */
+    public static function getRootPage(ContentBase $content)
+    {
+        return I18nPage::getRootPage($content);
+    }
+
 
     /*
         public function setCultureFromLanguage($language)

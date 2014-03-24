@@ -5,12 +5,13 @@
         /** @var  Translator */
         private static $_instance;
 
+        private $content_id;
         private $language;
         private $culture;
 
         private function __construct()
         {
-
+            $this->content_id = cms_utils::get_current_pageid();
         }
 
         /**
@@ -25,24 +26,33 @@
             return self::$_instance;
         }
 
+
+        public function setContentId($content_id)
+        {
+            $this->content_id = $content_id;
+
+        }
+
+
         private function languageDetection()
         {
-            $i18n             = cms_utils::get_module('I18n');
-            $detection_method = $i18n->GetPreference('detection_method', 'structure');
+            $detection_method = $this->I18n->GetPreference('detection_method', 'structure');
         }
+
+
+
+
+
+
+        // DEPRECATED
 
         /**
          * @return array
+         * @deprecated since 0.9.9
          */
         public static function getAvailableCultures()
         {
-            $cultures       = CultureInfo::getCultures();
-            $cultures_array = array();
-            foreach ($cultures as $culture) {
-                $cultures_array[$culture] = $culture;
-            }
-
-            return $cultures_array;
+            return I18nCulture::getAvailableCultures();
         }
 
     }
