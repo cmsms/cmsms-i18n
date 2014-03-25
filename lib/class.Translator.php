@@ -8,6 +8,7 @@ class Translator
     private $content_id;
     private $language;
     private $culture;
+    private $cultures;
 
     private $translations;
 
@@ -26,6 +27,14 @@ class Translator
         }
 
         return self::$_instance;
+    }
+
+    /**
+     * @return I18n
+     */
+    private function getI18n()
+    {
+        return cms_utils::get_module('I18n');
     }
 
     /**
@@ -49,8 +58,16 @@ class Translator
                 $this->language = I18nCulture::getLanguage($this->culture);
                 $this->translations = I18nTranslation::getTranslations($this->culture);
             }
-
         }
+    }
+
+    public function getCultures()
+    {
+        if(empty($this->cultures))
+        {
+            $this->cultures = $this->cultures = I18nPage::getCulturesFromRoots();
+        }
+        return $this->cultures;
     }
 
     public function getCulture()
@@ -71,6 +88,24 @@ class Translator
         }
 
         return null;
+    }
+
+    public function createTranslation($source, $culture = null)
+    {
+        if (is_null($culture)) {
+            $culture = $this->getCulture();
+        }
+        $source = html_entity_decode($source);
+
+        $translation = new I18nTranslation();
+        $translation->setCulture($culture);
+        $translation->setSource($source);
+        if ($culture == $this->getI18n()->getPreference('default_culture')) {
+            $translation->setTarget($source);
+        }
+        $translation->save();
+
+        return $translation;
     }
 
     /**

@@ -55,6 +55,42 @@ class I18nPage {
         }
     }
 
+    public static function getCulturesFromRoots()
+    {
+        $cultures = array();
+        $roots = self::getRootPages();
+
+        foreach($roots as $node)
+        {
+            /** @var $node cms_content_tree */
+            if($culture = I18nCulture::checkCulture($node->get_tag('alias')))
+            {
+                $cultures[$culture] = $culture;
+            }
+        }
+
+        return $cultures;
+    }
+
+    public static function getLanguagesFromRoots()
+    {
+        $cultures = self::getCulturesFromRoots();
+        $languages = array();
+        foreach($cultures as $culture)
+        {
+            $languages[$culture] = I18nCulture::getLanguage($culture);
+        }
+        return $languages;
+    }
+
+    private static function getRootPages()
+    {
+        /** @var cms_content_tree $manager */
+        $manager = CmsApp::get_instance()->GetHierarchyManager();
+        $roots = $manager->getChildren();
+        return $roots;
+    }
+
     public static function getCulture($content_id)
     {
         $root = self::getRootPageFromContentId($content_id);

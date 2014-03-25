@@ -145,23 +145,35 @@ class I18n extends CMSModule
     function InitializeFrontend()
     {
         $this->RegisterModulePlugin();
+
         $this->smarty->register_function('I18n_link', array('I18n', 'executeLinkAction'));
-        $this->smarty->register_function('I18n_init', array('I18n', 'I18nInit'));
+        $this->smarty->register_function('I18n_init', array('I18n', 'I18nInit', false));
         $this->smarty->register_block('I18nTranslate', array('I18n', 'I18nTranslate'));
         $this->smarty->register_block('__', array('I18n', 'I18nTranslate'));
 
         // $this->InitVars();
     }
 
-    public function I18nInit()
+    public static function I18nInit($params, Smarty_Internal_Template &$smarty)
     {
-        $i18n =& self::getTranslator();
-        $module = cms_utils::get_module('I18n');
-        $module->smarty->assign('language', $i18n->getLanguage());
-        $module->smarty->assign('lg', $i18n->getLanguage());
+        $translator = Translator::get_instance();
+        $smarty->assign('i18n', $translator);
+        $smarty->assign('culture', $translator->getCulture());
+        $smarty->assign('language', $translator->getLanguage());
+        $smarty->assign('lg', $translator->getLanguage());
     }
 
-    function executeLinkAction($params, &$smarty)
+    public static function availableCultures()
+    {
+        return I18nPage::getCulturesFromRoots();
+    }
+
+    public static function availableLanguages()
+    {
+        return I18nPage::getLanguagesFromRoots();
+    }
+
+    public static function executeLinkAction($params, Smarty_Internal_Template &$smarty)
     {
         global $id;
         global $returnid;
@@ -187,6 +199,7 @@ class I18n extends CMSModule
     {
         /** @var I18n $i18n */
         $i18n =& cms_utils::get_module('I18n');
+
         return $i18n->Translate($content, $elements);
     }
 
@@ -198,10 +211,13 @@ class I18n extends CMSModule
             $translation = $translator->translate($content);
 
             if (empty($translation) && ($this->getPreference('harvest') == 'true')) {
-                $translation = html_entity_decode($content);
 
                 if ($translator->getCulture() != '') {
-                    $translation = $this->createTranslation($content, $translator->getCulture());
+                    $translation = $translator->createTranslation($content)->getTarget();
+                }
+                else
+                {
+                    $translation = html_entity_decode($content);
                 }
             }
 
@@ -213,63 +229,6 @@ class I18n extends CMSModule
         }
 
         return null;
-    }
-
-    public static function getTranslator()
-    {
-        global $i18n;
-        if (!isset($i18n)) {
-            $i18n = new I18nBase();
-        }
-
-        return $i18n;
-    }
-
-    public function getTranslation($text, $lang = 'en', $target_lang = null)
-    {
-        $translator = Translator::get_instance();
-        $translation = $translator->translate($text);
-
-        if (empty($translation) && ($this->getPreference('harvest') == 'true')) {
-            if ($translator->getCulture() != '') {
-                $translation = $this->createTranslation($text, $translator->getCulture());
-            }
-            else
-            {
-                $translation = html_entity_decode($text); // Show the default language text if translation do not exists.
-            }
-        }
-
-        return $translation;
-    }
-
-
-    public function createTranslation($text, $culture, $target_lang = null)
-    {
-        $txt = html_entity_decode($text);
-        // Create an entry in the database
-        $trans = new I18nTranslation();
-        $trans->setCulture($culture);
-        $trans->setSource($txt);
-        if ($culture == $this->getPreference('default_culture')) {
-            $trans->setTarget($txt);
-        }
-        $trans->save();
-
-        return $txt;
-    }
-
-    public static function getTranslations($array, $lang = 'en', $target_lang = null)
-    {
-        $translations = array();
-
-        $module = cms_utils::get_module('I18n');
-
-        foreach ($array as $key => $translation) {
-            $translations[$key] = $module->getTranslation($translation, $lang, $target_lang);
-        }
-
-        return $translations;
     }
 
     public function redirectTo($alias)
@@ -295,6 +254,75 @@ class I18n extends CMSModule
             }
         }
     }
+
+    // DEPRECATED
+
+    /**
+     * @param $text
+     * @param string $lang
+     * @param null $target_lang
+     * @return null|string
+     * @deprecated since 0.9.9
+     */
+    public function getTranslation($text, $lang = 'en', $target_lang = null)
+    {
+        $translator = Translator::get_instance();
+        $translation = $translator->translate($text);
+
+        if (empty($translation) && ($this->getPreference('harvest') == 'true')) {
+            if ($translator->getCulture() != '') {
+                $translation = $translator->createTranslation($text)->getTarget();
+            } else {
+                $translation = html_entity_decode($text);
+            }
+        }
+
+        return $translation;
+    }
+
+    /**
+     * @return I18nBase
+     * @deprecated since 0.9.9
+     */
+    public static function getTranslator()
+    {
+        global $i18n;
+        if (!isset($i18n)) {
+            $i18n = new I18nBase();
+        }
+
+        return $i18n;
+    }
+
+    /**
+     * @param $text
+     * @param $culture
+     * @param null $target_lang
+     * @return mixed
+     * @deprecated since 0.9.9
+     */
+    public function createTranslation($text, $culture, $target_lang = null)
+    {
+        $translator = Translator::get_instance();
+        $translation = $translator->createTranslation($text, $culture);
+
+        return $translation->getTarget();
+    }
+
+    public static function getTranslations($array, $lang = 'en', $target_lang = null)
+    {
+        $translations = array();
+
+        $module = cms_utils::get_module('I18n');
+
+        foreach ($array as $key => $translation) {
+            $translations[$key] = $module->getTranslation($translation, $lang, $target_lang);
+        }
+
+        return $translations;
+    }
+
+
 }
 
 ?>
