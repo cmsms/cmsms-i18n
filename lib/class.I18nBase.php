@@ -10,18 +10,22 @@
 
 /**
  * Class I18nBase
- * 
+ * @deprecated use Translator
  */
 class I18nBase
 {
+    var $content_id;
     var $culture;
+
+
+
     var $main_culture;
 
     var $language;
     var $links;
     var $default_language;
     var $iso_language;
-    var $content_id;
+
 
     var $translations;
 
@@ -31,19 +35,23 @@ class I18nBase
 
     */
 
-
-    public function __construct($content_id = '', $culture = null)
+    public function __construct($content_id = null, $culture = null)
     {
-        if (!empty($content_id)) {
+        if(is_null($content_id))
+        {
+            $this->content_id = cms_utils::get_current_pageid();
+        }
+        else
+        {
             $this->content_id = $content_id;
-        } elseif (!is_null($culture)) {
+        }
 
+        if(!is_null($culture))
+        {
             if (CultureInfo::validCulture($culture) !== false) {
                 $this->setCulture($culture);
                 $this->language = $this->getLanguage();
             }
-        } else {
-            $this->content_id = cms_utils::get_current_pageid();
         }
     }
 
@@ -108,14 +116,10 @@ class I18nBase
 
     public function getTranslation($key)
     {
-        if (empty($this->translations)) {
-            $this->getTranslations();
-        }
-        if (isset($this->translations[html_entity_decode($key)])) {
-            return $this->translations[html_entity_decode($key)]->getTarget();
-        }
+        $translator = Translator::get_instance();
+        $translator->setContentId($this->content_id);
 
-        return null;
+        return $translator->translate($key);
     }
 
     public function getLinks()

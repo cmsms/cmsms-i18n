@@ -169,7 +169,7 @@ class I18n extends CMSModule
         $module->DoAction('link', $id, $params, $returnid);
     }
 
-    public function I18nTranslate($params, $content, $template, &$repeat)
+    public static function I18nTranslate($params, $content, $template, &$repeat)
     {
         $elements = array();
 
@@ -181,30 +181,27 @@ class I18n extends CMSModule
         }
 
         return self::__($content, $elements);
-        // $module =& cms_utils::get_module('I18n');
-        // return $module->Translate($content);
     }
 
     public static function __($content, $elements = array())
     {
+        /** @var I18n $i18n */
         $i18n =& cms_utils::get_module('I18n');
-
         return $i18n->Translate($content, $elements);
     }
 
     public function Translate($content, $elements = array())
     {
         if ($content != '') {
-            $i18n =& self::getTranslator();
-            $translation = $i18n->getTranslation($content);
 
-            if (empty($translation)) {
-                $translation = html_entity_decode(
-                    $content
-                ); // Show the default language text if translation do not exists.
+            $translator = Translator::get_instance();
+            $translation = $translator->translate($content);
 
-                if ($this->getPreference('harvest') == 'true' && $i18n->getCulture() != '') {
-                    $translation = $this->createTranslation($content, $i18n->getCulture());
+            if (empty($translation) && ($this->getPreference('harvest') == 'true')) {
+                $translation = html_entity_decode($content);
+
+                if ($translator->getCulture() != '') {
+                    $translation = $this->createTranslation($content, $translator->getCulture());
                 }
             }
 
@@ -230,50 +227,22 @@ class I18n extends CMSModule
 
     public function getTranslation($text, $lang = 'en', $target_lang = null)
     {
-        $i18n = self::getTranslator();
+        $translator = Translator::get_instance();
+        $translation = $translator->translate($text);
 
-        $translation = $i18n->getTranslation($text);
-
-        if (empty($translation)) {
-            if ($this->getPreference('harvest') && $i18n->getCulture() != '') {
-                // Create an entry in the database
-                $trans = new I18nTranslation();
-                $trans->setCulture($i18n->getCulture());
-                $trans->setSource(html_entity_decode($text));
-                if ($i18n->getCulture() == $this->getPreference('default_culture')) {
-                    $trans->setTarget(html_entity_decode($text));
-                }
-                $trans->save();
+        if (empty($translation) && ($this->getPreference('harvest') == 'true')) {
+            if ($translator->getCulture() != '') {
+                $translation = $this->createTranslation($text, $translator->getCulture());
             }
-            $translation = html_entity_decode($text); // Show the default language text if translation do not exists.
+            else
+            {
+                $translation = html_entity_decode($text); // Show the default language text if translation do not exists.
+            }
         }
 
         return $translation;
     }
 
-    public function redirectTo($alias)
-    {
-        $manager = cmsms()->GetHierarchyManager();
-        $node =& $manager->sureGetNodeByAlias($alias);
-        if (!isset($node)) {
-            return false;
-        }
-        $content =& $node->GetContent();
-
-        if ($content !== false && is_object($content)) {
-            $pageid = $content->Id();
-            $alias = $content->Alias();
-            $url = $content->GetUrl();
-
-            $currentid = cms_utils::get_current_pageid();
-
-            if ($pageid != $currentid) {
-                header('Location: ' . $url);
-
-                return true;
-            }
-        }
-    }
 
     public function createTranslation($text, $culture, $target_lang = null)
     {
@@ -301,6 +270,30 @@ class I18n extends CMSModule
         }
 
         return $translations;
+    }
+
+    public function redirectTo($alias)
+    {
+        $manager = cmsms()->GetHierarchyManager();
+        $node =& $manager->sureGetNodeByAlias($alias);
+        if (!isset($node)) {
+            return false;
+        }
+        $content =& $node->GetContent();
+
+        if ($content !== false && is_object($content)) {
+            $pageid = $content->Id();
+            $alias = $content->Alias();
+            $url = $content->GetUrl();
+
+            $currentid = cms_utils::get_current_pageid();
+
+            if ($pageid != $currentid) {
+                header('Location: ' . $url);
+
+                return true;
+            }
+        }
     }
 }
 
